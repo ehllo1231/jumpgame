@@ -50,6 +50,10 @@ public sealed class PlayerController : MonoBehaviour
     private bool isVariableJumpActive;
     private float jumpHoldTimer;
     private bool isJumpPassThroughActive;
+    private bool wasGrounded;
+    private bool isWaitingForJumpLanding;
+    private Collider2D jumpStartGround;
+    private PlatformScore jumpStartPlatformScore;
     private readonly HashSet<Collider2D> ignoredPlatforms = new HashSet<Collider2D>();
     private readonly List<Collider2D> platformsToRestore = new List<Collider2D>();
     private static PhysicsMaterial2D frictionlessMaterial;
@@ -124,9 +128,9 @@ public sealed class PlayerController : MonoBehaviour
             return;
         }
 
-        isGrounded = TryGetGround(out currentGround);
+        var canJump = TryGetGround(out _);
 
-        if (jumpInput != null && jumpInput.JumpPressedThisFrame && isGrounded)
+        if (jumpInput != null && jumpInput.JumpPressedThisFrame && canJump)
         {
             jumpQueued = true;
         }
@@ -150,13 +154,20 @@ public sealed class PlayerController : MonoBehaviour
         }
 
         UpdatePlatformPassThrough();
+        wasGrounded = isGrounded;
         isGrounded = TryGetGround(out currentGround);
 
-        if (isGrounded && TryHandleLedgeLanding(currentGround))
+        var flippedOnLanding = false;
+        if (!wasGrounded && isGrounded)
+        {
+            flippedOnLanding = HandleLanding(currentGround);
+        }
+
+        if (isGrounded && !flippedOnLanding && TryHandleLedgeLanding(currentGround))
         {
             ApplyHorizontalMovement();
         }
-        else if (isGrounded && TryFlipDirection(currentGround))
+        else if (isGrounded && !flippedOnLanding && TryFlipDirection(currentGround))
         {
             ApplyHorizontalMovement();
         }
@@ -530,6 +541,9 @@ public sealed class PlayerController : MonoBehaviour
 
     private void Jump()
     {
+        jumpStartGround = currentGround;
+        jumpStartPlatformScore = GetPlatformScore(currentGround);
+        isWaitingForJumpLanding = jumpStartGround != null;
         isJumpPassThroughActive = true;
         isVariableJumpActive = true;
         jumpHoldTimer = 0f;
@@ -538,6 +552,53 @@ public sealed class PlayerController : MonoBehaviour
         var velocity = body.linearVelocity;
         velocity.y = jumpForce;
         body.linearVelocity = velocity;
+    }
+
+    private bool HandleLanding(Collider2D landedGround)
+    {
+        if (!isWaitingForJumpLanding)
+        {
+            return false;
+        }
+
+        isWaitingForJumpLanding = false;
+
+        if (IsJumpStartGround(landedGround))
+        {
+            FlipDirection();
+            ClearJumpStartGround();
+            return true;
+        }
+
+        ClearJumpStartGround();
+        return false;
+    }
+
+    private bool IsJumpStartGround(Collider2D landedGround)
+    {
+        if (landedGround == null)
+        {
+            return false;
+        }
+
+        if (landedGround == jumpStartGround)
+        {
+            return true;
+        }
+
+        var landedPlatformScore = GetPlatformScore(landedGround);
+        return landedPlatformScore != null && landedPlatformScore == jumpStartPlatformScore;
+    }
+
+    private static PlatformScore GetPlatformScore(Collider2D ground)
+    {
+        return ground != null ? ground.GetComponentInParent<PlatformScore>() : null;
+    }
+
+    private void ClearJumpStartGround()
+    {
+        jumpStartGround = null;
+        jumpStartPlatformScore = null;
     }
 
     private void ApplyVariableJump()
@@ -594,6 +655,8 @@ public sealed class PlayerController : MonoBehaviour
         {
             isJumpPassThroughActive = false;
             isVariableJumpActive = false;
+            isWaitingForJumpLanding = false;
+            ClearJumpStartGround();
             jumpReleaseQueued = false;
             RestoreAllIgnoredPlatforms();
             body.linearVelocity = Vector2.zero;
