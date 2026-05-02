@@ -8,23 +8,36 @@ public sealed class LavaController : MonoBehaviour
     [SerializeField] private GameTuningConfig tuningConfig;
 
     [SerializeField] private float riseSpeed = 0.7f;
+    [SerializeField] private Vector2 size = new Vector2(200f, 3f);
+    [SerializeField] private bool followCameraX = true;
     [SerializeField] private string playerTag = "Player";
+
+    private Collider2D lavaCollider;
+    private BoxCollider2D boxCollider;
 
     public void SetTuningConfig(GameTuningConfig config)
     {
         tuningConfig = config;
+        CacheComponents();
         ApplyConfig();
+        ApplyColliderSettings();
+        ApplySize();
     }
 
     private void Awake()
     {
-        GetComponent<Collider2D>().isTrigger = true;
+        CacheComponents();
+        ApplyColliderSettings();
         ApplyConfig();
+        ApplySize();
     }
 
     private void OnValidate()
     {
+        CacheComponents();
+        ApplyColliderSettings();
         ApplyConfig();
+        ApplySize();
     }
 
     private void Update()
@@ -34,7 +47,15 @@ public sealed class LavaController : MonoBehaviour
             return;
         }
 
-        transform.position += Vector3.up * (riseSpeed * Time.deltaTime);
+        var position = transform.position;
+        position.y += riseSpeed * Time.deltaTime;
+
+        if (followCameraX && Camera.main != null)
+        {
+            position.x = Camera.main.transform.position.x;
+        }
+
+        transform.position = position;
     }
 
     private void OnTriggerEnter2D(Collider2D other)
@@ -89,5 +110,35 @@ public sealed class LavaController : MonoBehaviour
         }
 
         riseSpeed = tuningConfig.LavaRiseSpeed;
+        size = tuningConfig.LavaSize;
+        followCameraX = tuningConfig.LavaFollowCameraX;
+    }
+
+    private void CacheComponents()
+    {
+        lavaCollider = GetComponent<Collider2D>();
+        boxCollider = lavaCollider as BoxCollider2D;
+    }
+
+    private void ApplyColliderSettings()
+    {
+        if (lavaCollider != null)
+        {
+            lavaCollider.isTrigger = true;
+        }
+    }
+
+    private void ApplySize()
+    {
+        var safeSize = new Vector2(Mathf.Max(1f, size.x), Mathf.Max(0.1f, size.y));
+        transform.localScale = new Vector3(safeSize.x, safeSize.y, transform.localScale.z == 0f ? 1f : transform.localScale.z);
+
+        if (boxCollider == null)
+        {
+            return;
+        }
+
+        boxCollider.offset = Vector2.zero;
+        boxCollider.size = Vector2.one;
     }
 }

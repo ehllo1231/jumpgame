@@ -16,6 +16,9 @@ public sealed class PlatformSpawner : MonoBehaviour
     [SerializeField] private Vector2 platformWidthRange = new Vector2(1.8f, 3f);
     [SerializeField] private float maxHorizontalStep = 1.8f;
     [SerializeField] private float platformHeight = 0.25f;
+    [SerializeField] private bool keepSpawningPlatforms = true;
+    [SerializeField] private float spawnAheadDistance = 18f;
+    [SerializeField] private float cleanupBelowDistance = 30f;
     [SerializeField] private bool useRandomSeed;
     [SerializeField] private int randomSeed = 12345;
 
@@ -24,8 +27,15 @@ public sealed class PlatformSpawner : MonoBehaviour
     [SerializeField] private Transform platformParent;
     [SerializeField] private Color fallbackPlatformColor = new Color(0.22f, 0.55f, 0.42f);
 
+    [Header("Target")]
+    [SerializeField] private Transform target;
+    [SerializeField] private string targetTag = "Player";
+
     private readonly List<GameObject> spawnedPlatforms = new List<GameObject>();
     private System.Random random;
+    private float lastPlatformX;
+    private float nextPlatformY;
+    private int nextPlatformIndex;
 
     public void SetTuningConfig(GameTuningConfig config)
     {
@@ -43,6 +53,24 @@ public sealed class PlatformSpawner : MonoBehaviour
         }
     }
 
+    private void Update()
+    {
+        if (!keepSpawningPlatforms || !GameManager.IsGamePlaying)
+        {
+            return;
+        }
+
+        EnsureTarget();
+
+        if (target == null)
+        {
+            return;
+        }
+
+        EnsurePlatformsAhead(target.position.y + spawnAheadDistance);
+        CleanupPlatformsBelow(target.position.y - cleanupBelowDistance);
+    }
+
     private void OnValidate()
     {
         ApplyConfig();
@@ -53,24 +81,54 @@ public sealed class PlatformSpawner : MonoBehaviour
     {
         ApplyConfig();
         ClearSpawnedPlatforms();
+        ResetGenerator();
+        GeneratePlatforms(platformCount);
+    }
 
-        random = useRandomSeed ? new System.Random(randomSeed) : new System.Random();
-
-        var x = 0f;
-        var y = firstPlatformY;
-        for (var i = 0; i < platformCount; i++)
+    private void GeneratePlatforms(int count)
+    {
+        for (var i = 0; i < count; i++)
         {
-            x = ClampToRange(x + Range(new Vector2(-maxHorizontalStep, maxHorizontalStep)), xRange);
-            var width = Range(platformWidthRange);
-            var size = new Vector2(width, platformHeight);
-            var position = new Vector2(x, y);
-
-            SpawnPlatform(position, size, $"Platform {i + 1:00}");
-            y += Range(verticalSpacingRange);
+            SpawnNextPlatform();
         }
     }
 
-    private void SpawnPlatform(Vector2 position, Vector2 size, string platformName)
+    private void ResetGenerator()
+    {
+        random = useRandomSeed ? new System.Random(randomSeed) : new System.Random();
+        lastPlatformX = 0f;
+        nextPlatformY = firstPlatformY;
+        nextPlatformIndex = 1;
+    }
+
+    private void EnsurePlatformsAhead(float requiredTopY)
+    {
+        if (random == null)
+        {
+            ResetGenerator();
+        }
+
+        while (nextPlatformY <= requiredTopY)
+        {
+            SpawnNextPlatform();
+        }
+    }
+
+    private void SpawnNextPlatform()
+    {
+        lastPlatformX = ClampToRange(lastPlatformX + Range(new Vector2(-maxHorizontalStep, maxHorizontalStep)), xRange);
+        var width = Range(platformWidthRange);
+        var size = new Vector2(width, platformHeight);
+        var position = new Vector2(lastPlatformX, nextPlatformY);
+
+        var platform = SpawnPlatform(position, size, $"Platform {nextPlatformIndex:00}");
+        AssignPlatformScore(platform, nextPlatformIndex);
+
+        nextPlatformIndex++;
+        nextPlatformY += Range(verticalSpacingRange);
+    }
+
+    private GameObject SpawnPlatform(Vector2 position, Vector2 size, string platformName)
     {
         var parent = platformParent != null ? platformParent : transform;
         GameObject platform;
@@ -96,6 +154,22 @@ public sealed class PlatformSpawner : MonoBehaviour
 
         TrySetTag(platform, "Platform");
         spawnedPlatforms.Add(platform);
+        return platform;
+    }
+
+    private static void AssignPlatformScore(GameObject platform, int score)
+    {
+        if (platform == null)
+        {
+            return;
+        }
+
+        if (!platform.TryGetComponent(out PlatformScore platformScore))
+        {
+            platformScore = platform.AddComponent<PlatformScore>();
+        }
+
+        platformScore.SetScore(score);
     }
 
     private void ClearSpawnedPlatforms()
@@ -118,6 +192,61 @@ public sealed class PlatformSpawner : MonoBehaviour
         }
 
         spawnedPlatforms.Clear();
+    }
+
+    private void CleanupPlatformsBelow(float cutoffY)
+    {
+        if (cleanupBelowDistance <= 0f)
+        {
+            return;
+        }
+
+        for (var i = spawnedPlatforms.Count - 1; i >= 0; i--)
+        {
+            var platform = spawnedPlatforms[i];
+
+            if (platform == null)
+            {
+                spawnedPlatforms.RemoveAt(i);
+                continue;
+            }
+
+            if (platform.transform.position.y >= cutoffY)
+            {
+                continue;
+            }
+
+            spawnedPlatforms.RemoveAt(i);
+            Destroy(platform);
+        }
+    }
+
+    private void EnsureTarget()
+    {
+        if (target != null)
+        {
+            return;
+        }
+
+        try
+        {
+            var targetObject = GameObject.FindGameObjectWithTag(targetTag);
+            if (targetObject != null)
+            {
+                target = targetObject.transform;
+                return;
+            }
+        }
+        catch (UnityException)
+        {
+            target = null;
+        }
+
+        var player = Object.FindAnyObjectByType<PlayerController>();
+        if (player != null)
+        {
+            target = player.transform;
+        }
     }
 
     private float Range(Vector2 range)
@@ -160,6 +289,9 @@ public sealed class PlatformSpawner : MonoBehaviour
         platformWidthRange = tuningConfig.PlatformWidthRange;
         maxHorizontalStep = tuningConfig.PlatformMaxHorizontalStep;
         platformHeight = tuningConfig.PlatformHeight;
+        keepSpawningPlatforms = tuningConfig.KeepSpawningPlatforms;
+        spawnAheadDistance = tuningConfig.PlatformSpawnAheadDistance;
+        cleanupBelowDistance = tuningConfig.PlatformCleanupBelowDistance;
         useRandomSeed = tuningConfig.UseRandomSeed;
         randomSeed = tuningConfig.RandomSeed;
     }

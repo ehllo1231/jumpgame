@@ -7,6 +7,7 @@ public static class MvpSceneBuilder
 {
     private const string ScenePath = "Assets/Scenes/VerticalClimbMvp.unity";
     private const string ConfigAssetPath = "Assets/Resources/GameTuningConfig.asset";
+    private static readonly Vector2 DefaultLavaSize = new Vector2(200f, 3f);
 
     [MenuItem("Tools/Merado/Create Vertical Climb MVP Scene")]
     public static void CreateScene()
@@ -24,9 +25,12 @@ public static class MvpSceneBuilder
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
         new GameObject("GameManager").AddComponent<GameManager>();
+        new GameObject("ScoreManager").AddComponent<ScoreManager>();
+        new GameObject("GameUI").AddComponent<GameUiController>();
 
         var platformsParent = new GameObject("Platforms").transform;
-        CreateBox("StartPlatform", new Vector2(0f, 0f), new Vector2(4f, 0.35f), new Color(0.2f, 0.55f, 0.38f), "Platform", platformsParent);
+        var startPlatform = CreateBox("StartPlatform", new Vector2(0f, 0f), new Vector2(4f, 0.35f), new Color(0.2f, 0.55f, 0.38f), "Platform", platformsParent);
+        AssignPlatformScore(startPlatform, 0);
 
         var player = CreateBox("Player", new Vector2(0f, 0.75f), new Vector2(0.6f, 0.8f), new Color(0.2f, 0.55f, 0.95f), "Player", null, 2);
         var playerBody = player.AddComponent<Rigidbody2D>();
@@ -41,7 +45,7 @@ public static class MvpSceneBuilder
         playerController.SetTuningConfig(tuningConfig);
         SetObject(playerController, "groundCheck", groundCheck);
 
-        var lava = CreateBox("Lava", new Vector2(0f, -4.6f), new Vector2(8f, 3f), new Color(1f, 0.2f, 0.05f), "Lava", null, 1);
+        var lava = CreateBox("Lava", new Vector2(0f, -4.6f), GetLavaSize(tuningConfig), new Color(1f, 0.2f, 0.05f), "Lava", null, 1);
         lava.GetComponent<BoxCollider2D>().isTrigger = true;
         lava.AddComponent<LavaController>().SetTuningConfig(tuningConfig);
 
@@ -85,6 +89,27 @@ public static class MvpSceneBuilder
         target.AddComponent<BoxCollider2D>().size = Vector2.one;
         TrySetTag(target, tagName);
         return target;
+    }
+
+    private static Vector2 GetLavaSize(GameTuningConfig tuningConfig)
+    {
+        return tuningConfig != null ? tuningConfig.LavaSize : DefaultLavaSize;
+    }
+
+    private static void AssignPlatformScore(GameObject platform, int score)
+    {
+        if (platform == null)
+        {
+            return;
+        }
+
+        var platformScore = platform.GetComponent<PlatformScore>();
+        if (platformScore == null)
+        {
+            platformScore = platform.AddComponent<PlatformScore>();
+        }
+
+        platformScore.SetScore(score);
     }
 
     private static void TrySetTag(GameObject target, string tagName)

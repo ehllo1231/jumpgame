@@ -19,7 +19,7 @@ public sealed class PlayerController : MonoBehaviour
     [SerializeField] private float jumpCutVelocityMultiplier = 0.45f;
     [SerializeField] private bool keepAirMomentum = true;
     [SerializeField] private bool useFrictionlessMaterial = true;
-    [SerializeField] private bool useMovementBounds = true;
+    [SerializeField] private bool useMovementBounds;
     [SerializeField] private float minX = -3.2f;
     [SerializeField] private float maxX = 3.2f;
 
@@ -30,7 +30,7 @@ public sealed class PlayerController : MonoBehaviour
 
     [Header("Edge Check")]
     [SerializeField] private bool flipAtPlatformEdges = true;
-    [SerializeField] private float edgeCheckForwardDistance = 0.03f;
+    [SerializeField] private float edgeCheckForwardDistance;
     [SerializeField] private float edgeCheckDownDistance = 0.35f;
     [SerializeField] private float ledgeLandingOverlapWidth = 0.14f;
     [SerializeField] private float ledgeLandingInset = 0.06f;
@@ -53,6 +53,9 @@ public sealed class PlayerController : MonoBehaviour
     private readonly HashSet<Collider2D> ignoredPlatforms = new HashSet<Collider2D>();
     private readonly List<Collider2D> platformsToRestore = new List<Collider2D>();
     private static PhysicsMaterial2D frictionlessMaterial;
+
+    public bool IsGrounded => isGrounded;
+    public Collider2D CurrentGround => currentGround;
 
     public void SetTuningConfig(GameTuningConfig config)
     {
@@ -153,9 +156,9 @@ public sealed class PlayerController : MonoBehaviour
         {
             ApplyHorizontalMovement();
         }
-        else if (isGrounded && ShouldFlipDirection())
+        else if (isGrounded && TryFlipDirection(currentGround))
         {
-            FlipDirection();
+            ApplyHorizontalMovement();
         }
 
         if (isGrounded || keepAirMomentum)
@@ -237,6 +240,7 @@ public sealed class PlayerController : MonoBehaviour
         heldJumpForce = tuningConfig.HeldJumpForce;
         maxJumpHoldTime = tuningConfig.MaxJumpHoldTime;
         jumpCutVelocityMultiplier = tuningConfig.JumpCutVelocityMultiplier;
+        useMovementBounds = tuningConfig.UseMovementBounds;
         minX = tuningConfig.PlayerMinX;
         maxX = tuningConfig.PlayerMaxX;
         groundCheckRadius = tuningConfig.GroundCheckRadius;
@@ -287,41 +291,65 @@ public sealed class PlayerController : MonoBehaviour
         return null;
     }
 
-    private bool ShouldFlipDirection()
+    private bool TryFlipDirection(Collider2D ground)
     {
-        if (useMovementBounds)
+        if (flipAtPlatformEdges && ground != null)
         {
-            if (moveDirection < 0 && transform.position.x <= minX)
+            if (HasReachedPlatformEdge(ground, out var targetCenterX))
             {
+                SnapInsidePlatformEdge(targetCenterX);
+                FlipDirection();
                 return true;
             }
 
-            if (moveDirection > 0 && transform.position.x >= maxX)
-            {
-                return true;
-            }
+            return false;
         }
 
-        return flipAtPlatformEdges && !HasGroundAhead();
-    }
-
-    private bool HasGroundAhead()
-    {
-        var bounds = playerCollider.bounds;
-        var frontX = moveDirection > 0 ? bounds.max.x : bounds.min.x;
-        var origin = new Vector2(frontX + moveDirection * edgeCheckForwardDistance, bounds.center.y);
-        var rayDistance = GetColliderHalfHeight() + edgeCheckDownDistance;
-        var hits = Physics2D.RaycastAll(origin, Vector2.down, rayDistance, groundLayer);
-
-        foreach (var hit in hits)
+        if (useMovementBounds && HasReachedMovementBound())
         {
-            if (IsValidGround(hit.collider) && !IsIgnoringPlatform(hit.collider))
-            {
-                return true;
-            }
+            FlipDirection();
+            return true;
         }
 
         return false;
+    }
+
+    private bool HasReachedPlatformEdge(Collider2D ground, out float targetCenterX)
+    {
+        targetCenterX = body.position.x;
+
+        if (ground == null || playerCollider == null)
+        {
+            return false;
+        }
+
+        var playerBounds = playerCollider.bounds;
+        var groundBounds = ground.bounds;
+        var edgeTolerance = Mathf.Max(0f, edgeCheckForwardDistance);
+
+        if (moveDirection < 0 && playerBounds.min.x <= groundBounds.min.x + edgeTolerance)
+        {
+            targetCenterX = groundBounds.min.x + playerBounds.extents.x;
+            return true;
+        }
+
+        if (moveDirection > 0 && playerBounds.max.x >= groundBounds.max.x - edgeTolerance)
+        {
+            targetCenterX = groundBounds.max.x - playerBounds.extents.x;
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool HasReachedMovementBound()
+    {
+        if (moveDirection < 0 && transform.position.x <= minX)
+        {
+            return true;
+        }
+
+        return moveDirection > 0 && transform.position.x >= maxX;
     }
 
     private bool TryHandleLedgeLanding(Collider2D ground)

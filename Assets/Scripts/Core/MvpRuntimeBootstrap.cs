@@ -3,16 +3,37 @@ using UnityEngine;
 public static class MvpRuntimeBootstrap
 {
     private const string ConfigResourcePath = "GameTuningConfig";
+    private static readonly Vector2 DefaultLavaSize = new Vector2(200f, 3f);
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void CreatePlayableMvpIfSceneIsEmpty()
     {
         if (Object.FindAnyObjectByType<PlayerController>() != null)
         {
+            EnsureRuntimeSupportObjects();
             return;
         }
 
         BuildRuntimeScene();
+        EnsureRuntimeSupportObjects();
+    }
+
+    public static void RestartRuntimeScene()
+    {
+        DestroyRuntimeObject(Object.FindAnyObjectByType<PlayerController>());
+        DestroyRuntimeObject(Object.FindAnyObjectByType<PlatformSpawner>());
+        DestroyRuntimeObject(Object.FindAnyObjectByType<LavaController>());
+        DestroyRuntimeObject(Object.FindAnyObjectByType<ScoreManager>());
+        DestroyRuntimeObject(Object.FindAnyObjectByType<GameManager>());
+
+        var platforms = GameObject.Find("Platforms");
+        if (platforms != null)
+        {
+            DestroyGameObject(platforms);
+        }
+
+        BuildRuntimeScene();
+        EnsureRuntimeSupportObjects();
     }
 
     private static void BuildRuntimeScene()
@@ -22,7 +43,8 @@ public static class MvpRuntimeBootstrap
         new GameObject("GameManager").AddComponent<GameManager>();
 
         var platformsParent = new GameObject("Platforms").transform;
-        CreateBox("StartPlatform", new Vector2(0f, 0f), new Vector2(4f, 0.35f), new Color(0.2f, 0.55f, 0.38f), "Platform", platformsParent);
+        var startPlatform = CreateBox("StartPlatform", new Vector2(0f, 0f), new Vector2(4f, 0.35f), new Color(0.2f, 0.55f, 0.38f), "Platform", platformsParent);
+        AssignPlatformScore(startPlatform, 0);
 
         var player = CreateBox("Player", new Vector2(0f, 0.75f), new Vector2(0.6f, 0.8f), new Color(0.2f, 0.55f, 0.95f), "Player", null, 2);
         var playerBody = player.AddComponent<Rigidbody2D>();
@@ -32,7 +54,7 @@ public static class MvpRuntimeBootstrap
         player.AddComponent<KeyboardTouchJumpInput>();
         player.AddComponent<PlayerController>().SetTuningConfig(tuningConfig);
 
-        var lava = CreateBox("Lava", new Vector2(0f, -4.6f), new Vector2(8f, 3f), new Color(1f, 0.2f, 0.05f), "Lava", null, 1);
+        var lava = CreateBox("Lava", new Vector2(0f, -4.6f), GetLavaSize(tuningConfig), new Color(1f, 0.2f, 0.05f), "Lava", null, 1);
         lava.GetComponent<BoxCollider2D>().isTrigger = true;
         lava.AddComponent<LavaController>().SetTuningConfig(tuningConfig);
 
@@ -57,6 +79,44 @@ public static class MvpRuntimeBootstrap
         cameraFollow.SetFollowDownward(true);
     }
 
+    private static void EnsureRuntimeSupportObjects()
+    {
+        if (Object.FindAnyObjectByType<GameManager>() == null)
+        {
+            new GameObject("GameManager").AddComponent<GameManager>();
+        }
+
+        if (Object.FindAnyObjectByType<ScoreManager>() == null)
+        {
+            new GameObject("ScoreManager").AddComponent<ScoreManager>();
+        }
+
+        if (Object.FindAnyObjectByType<GameUiController>() == null)
+        {
+            new GameObject("GameUI").AddComponent<GameUiController>();
+        }
+    }
+
+    private static void DestroyRuntimeObject(Component component)
+    {
+        if (component == null)
+        {
+            return;
+        }
+
+        DestroyGameObject(component.gameObject);
+    }
+
+    private static void DestroyGameObject(GameObject target)
+    {
+        if (target == null)
+        {
+            return;
+        }
+
+        Object.DestroyImmediate(target);
+    }
+
     private static GameObject GetOrCreateMainCamera()
     {
         var camera = Camera.main;
@@ -71,6 +131,11 @@ public static class MvpRuntimeBootstrap
         return cameraObject;
     }
 
+    private static Vector2 GetLavaSize(GameTuningConfig tuningConfig)
+    {
+        return tuningConfig != null ? tuningConfig.LavaSize : DefaultLavaSize;
+    }
+
     private static GameObject CreateBox(string name, Vector2 position, Vector2 size, Color color, string tagName, Transform parent = null, int sortingOrder = 0)
     {
         var target = new GameObject(name);
@@ -81,6 +146,22 @@ public static class MvpRuntimeBootstrap
         target.AddComponent<BoxCollider2D>().size = Vector2.one;
         TrySetTag(target, tagName);
         return target;
+    }
+
+    private static void AssignPlatformScore(GameObject platform, int score)
+    {
+        if (platform == null)
+        {
+            return;
+        }
+
+        var platformScore = platform.GetComponent<PlatformScore>();
+        if (platformScore == null)
+        {
+            platformScore = platform.AddComponent<PlatformScore>();
+        }
+
+        platformScore.SetScore(score);
     }
 
     private static void TrySetTag(GameObject target, string tagName)

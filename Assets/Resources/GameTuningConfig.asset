@@ -17,10 +17,11 @@ MonoBehaviour:
   heldJumpForce: 24
   maxJumpHoldTime: 0.22
   jumpCutVelocityMultiplier: 0.45
+  useMovementBounds: 0
   playerMinX: -3.2
   playerMaxX: 3.2
   groundCheckRadius: 0.14
-  edgeCheckForwardDistance: 0.03
+  edgeCheckForwardDistance: 0
   edgeCheckDownDistance: 0.35
   ledgeLandingOverlapWidth: 0.14
   ledgeLandingInset: 0.06
@@ -31,6 +32,11 @@ MonoBehaviour:
   platformWidthRange: {x: 1.8, y: 3}
   platformMaxHorizontalStep: 1.8
   platformHeight: 0.25
+  keepSpawningPlatforms: 1
+  platformSpawnAheadDistance: 18
+  platformCleanupBelowDistance: 30
   useRandomSeed: 0
   randomSeed: 12345
   lavaRiseSpeed: 0.7
+  lavaSize: {x: 200, y: 3}
+  lavaFollowCameraX: 1
