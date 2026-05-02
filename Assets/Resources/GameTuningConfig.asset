@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7620f10f375d4a04e88f2bcfb5685977, type: 3}
+  m_Name: GameTuningConfig
+  m_EditorClassIdentifier:
+  playerMoveSpeed: 2.25
+  playerJumpForce: 7.2
+  heldJumpForce: 24
+  maxJumpHoldTime: 0.22
+  jumpCutVelocityMultiplier: 0.45
+  playerMinX: -3.2
+  playerMaxX: 3.2
+  groundCheckRadius: 0.14
+  edgeCheckForwardDistance: 0.03
+  edgeCheckDownDistance: 0.35
+  ledgeLandingOverlapWidth: 0.14
+  ledgeLandingInset: 0.06
+  platformCount: 45
+  firstPlatformY: 1.8
+  platformXRange: {x: -2.6, y: 2.6}
+  platformVerticalSpacingRange: {x: 1.25, y: 1.75}
+  platformWidthRange: {x: 1.8, y: 3}
+  platformMaxHorizontalStep: 1.8
+  platformHeight: 0.25
+  useRandomSeed: 0
+  randomSeed: 12345
+  lavaRiseSpeed: 0.7

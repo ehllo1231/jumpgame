@@ -1,0 +1,97 @@
+using UnityEngine;
+
+public static class MvpRuntimeBootstrap
+{
+    private const string ConfigResourcePath = "GameTuningConfig";
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    private static void CreatePlayableMvpIfSceneIsEmpty()
+    {
+        if (Object.FindAnyObjectByType<PlayerController>() != null)
+        {
+            return;
+        }
+
+        BuildRuntimeScene();
+    }
+
+    private static void BuildRuntimeScene()
+    {
+        var tuningConfig = Resources.Load<GameTuningConfig>(ConfigResourcePath);
+
+        new GameObject("GameManager").AddComponent<GameManager>();
+
+        var platformsParent = new GameObject("Platforms").transform;
+        CreateBox("StartPlatform", new Vector2(0f, 0f), new Vector2(4f, 0.35f), new Color(0.2f, 0.55f, 0.38f), "Platform", platformsParent);
+
+        var player = CreateBox("Player", new Vector2(0f, 0.75f), new Vector2(0.6f, 0.8f), new Color(0.2f, 0.55f, 0.95f), "Player", null, 2);
+        var playerBody = player.AddComponent<Rigidbody2D>();
+        playerBody.gravityScale = 2f;
+        playerBody.interpolation = RigidbodyInterpolation2D.Interpolate;
+        playerBody.constraints = RigidbodyConstraints2D.FreezeRotation;
+        player.AddComponent<KeyboardTouchJumpInput>();
+        player.AddComponent<PlayerController>().SetTuningConfig(tuningConfig);
+
+        var lava = CreateBox("Lava", new Vector2(0f, -4.6f), new Vector2(8f, 3f), new Color(1f, 0.2f, 0.05f), "Lava", null, 1);
+        lava.GetComponent<BoxCollider2D>().isTrigger = true;
+        lava.AddComponent<LavaController>().SetTuningConfig(tuningConfig);
+
+        new GameObject("PlatformSpawner").AddComponent<PlatformSpawner>().SetTuningConfig(tuningConfig);
+
+        var cameraObject = GetOrCreateMainCamera();
+        cameraObject.transform.position = new Vector3(0f, 2.2f, -10f);
+
+        var camera = cameraObject.GetComponent<Camera>();
+        camera.orthographic = true;
+        camera.orthographicSize = 5f;
+        camera.backgroundColor = new Color(0.08f, 0.09f, 0.1f);
+        camera.clearFlags = CameraClearFlags.SolidColor;
+
+        var cameraFollow = cameraObject.GetComponent<CameraFollow>();
+        if (cameraFollow == null)
+        {
+            cameraFollow = cameraObject.AddComponent<CameraFollow>();
+        }
+
+        cameraFollow.SetTarget(player.transform);
+        cameraFollow.SetFollowDownward(true);
+    }
+
+    private static GameObject GetOrCreateMainCamera()
+    {
+        var camera = Camera.main;
+        if (camera != null)
+        {
+            return camera.gameObject;
+        }
+
+        var cameraObject = new GameObject("Main Camera");
+        TrySetTag(cameraObject, "MainCamera");
+        cameraObject.AddComponent<Camera>();
+        return cameraObject;
+    }
+
+    private static GameObject CreateBox(string name, Vector2 position, Vector2 size, Color color, string tagName, Transform parent = null, int sortingOrder = 0)
+    {
+        var target = new GameObject(name);
+        target.transform.SetParent(parent);
+        target.transform.position = position;
+        RuntimeSpriteUtility.EnsureSpriteRenderer(target, color, size, sortingOrder);
+        target.AddComponent<PlaceholderShapeRenderer>().Configure(color, sortingOrder);
+        target.AddComponent<BoxCollider2D>().size = Vector2.one;
+        TrySetTag(target, tagName);
+        return target;
+    }
+
+    private static void TrySetTag(GameObject target, string tagName)
+    {
+        try
+        {
+            target.tag = tagName;
+        }
+        catch (UnityException)
+        {
+            Debug.LogWarning($"Tag '{tagName}' is not defined. Add it in Project Settings > Tags and Layers.", target);
+        }
+    }
+}
