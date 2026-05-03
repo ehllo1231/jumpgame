@@ -7,6 +7,7 @@ public static class MvpSceneBuilder
 {
     private const string ScenePath = "Assets/Scenes/VerticalClimbMvp.unity";
     private const string ConfigAssetPath = "Assets/Resources/GameTuningConfig.asset";
+    private const float DefaultPlayerGravityScale = 2f;
     private static readonly Vector2 DefaultLavaSize = new Vector2(200f, 3f);
 
     [MenuItem("Tools/Merado/Create Vertical Climb MVP Scene")]
@@ -34,7 +35,7 @@ public static class MvpSceneBuilder
 
         var player = CreateBox("Player", new Vector2(0f, 0.75f), new Vector2(0.6f, 0.8f), new Color(0.2f, 0.55f, 0.95f), "Player", null, 2);
         var playerBody = player.AddComponent<Rigidbody2D>();
-        playerBody.gravityScale = 2f;
+        playerBody.gravityScale = GetPlayerGravityScale(tuningConfig);
         playerBody.interpolation = RigidbodyInterpolation2D.Interpolate;
         playerBody.constraints = RigidbodyConstraints2D.FreezeRotation;
         player.AddComponent<KeyboardTouchJumpInput>();
@@ -44,6 +45,7 @@ public static class MvpSceneBuilder
         var playerController = player.AddComponent<PlayerController>();
         playerController.SetTuningConfig(tuningConfig);
         SetObject(playerController, "groundCheck", groundCheck);
+        player.AddComponent<PlayerVisual>().SetTuningConfig(tuningConfig);
 
         var lava = CreateBox("Lava", new Vector2(0f, -4.6f), GetLavaSize(tuningConfig), new Color(1f, 0.2f, 0.05f), "Lava", null, 1);
         lava.GetComponent<BoxCollider2D>().isTrigger = true;
@@ -94,6 +96,11 @@ public static class MvpSceneBuilder
     private static Vector2 GetLavaSize(GameTuningConfig tuningConfig)
     {
         return tuningConfig != null ? tuningConfig.LavaSize : DefaultLavaSize;
+    }
+
+    private static float GetPlayerGravityScale(GameTuningConfig tuningConfig)
+    {
+        return tuningConfig != null ? tuningConfig.PlayerGravityScale : DefaultPlayerGravityScale;
     }
 
     private static void AssignPlatformScore(GameObject platform, int score)

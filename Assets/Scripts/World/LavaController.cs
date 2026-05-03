@@ -7,13 +7,16 @@ public sealed class LavaController : MonoBehaviour
     [Header("Config")]
     [SerializeField] private GameTuningConfig tuningConfig;
 
-    [SerializeField] private float riseSpeed = 0.7f;
+    [SerializeField] private float initialRiseSpeed = 0.7f;
+    [SerializeField] private float acceleration = 0.04f;
+    [SerializeField] private float maxRiseSpeed = 2.2f;
     [SerializeField] private Vector2 size = new Vector2(200f, 3f);
     [SerializeField] private bool followCameraX = true;
     [SerializeField] private string playerTag = "Player";
 
     private Collider2D lavaCollider;
     private BoxCollider2D boxCollider;
+    private float currentRiseSpeed;
 
     public void SetTuningConfig(GameTuningConfig config)
     {
@@ -22,6 +25,7 @@ public sealed class LavaController : MonoBehaviour
         ApplyConfig();
         ApplyColliderSettings();
         ApplySize();
+        ResetSpeed();
     }
 
     private void Awake()
@@ -30,6 +34,7 @@ public sealed class LavaController : MonoBehaviour
         ApplyColliderSettings();
         ApplyConfig();
         ApplySize();
+        ResetSpeed();
     }
 
     private void OnValidate()
@@ -47,8 +52,10 @@ public sealed class LavaController : MonoBehaviour
             return;
         }
 
+        currentRiseSpeed = Mathf.Min(currentRiseSpeed + acceleration * Time.deltaTime, maxRiseSpeed);
+
         var position = transform.position;
-        position.y += riseSpeed * Time.deltaTime;
+        position.y += currentRiseSpeed * Time.deltaTime;
 
         if (followCameraX && Camera.main != null)
         {
@@ -109,9 +116,18 @@ public sealed class LavaController : MonoBehaviour
             return;
         }
 
-        riseSpeed = tuningConfig.LavaRiseSpeed;
+        initialRiseSpeed = tuningConfig.LavaRiseSpeed;
+        acceleration = tuningConfig.LavaAcceleration;
+        maxRiseSpeed = tuningConfig.LavaMaxRiseSpeed;
         size = tuningConfig.LavaSize;
         followCameraX = tuningConfig.LavaFollowCameraX;
+    }
+
+    private void ResetSpeed()
+    {
+        maxRiseSpeed = Mathf.Max(initialRiseSpeed, maxRiseSpeed);
+        acceleration = Mathf.Max(0f, acceleration);
+        currentRiseSpeed = Mathf.Min(initialRiseSpeed, maxRiseSpeed);
     }
 
     private void CacheComponents()

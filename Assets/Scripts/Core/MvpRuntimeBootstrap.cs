@@ -3,6 +3,7 @@ using UnityEngine;
 public static class MvpRuntimeBootstrap
 {
     private const string ConfigResourcePath = "GameTuningConfig";
+    private const float DefaultPlayerGravityScale = 2f;
     private static readonly Vector2 DefaultLavaSize = new Vector2(200f, 3f);
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -48,11 +49,12 @@ public static class MvpRuntimeBootstrap
 
         var player = CreateBox("Player", new Vector2(0f, 0.75f), new Vector2(0.6f, 0.8f), new Color(0.2f, 0.55f, 0.95f), "Player", null, 2);
         var playerBody = player.AddComponent<Rigidbody2D>();
-        playerBody.gravityScale = 2f;
+        playerBody.gravityScale = GetPlayerGravityScale(tuningConfig);
         playerBody.interpolation = RigidbodyInterpolation2D.Interpolate;
         playerBody.constraints = RigidbodyConstraints2D.FreezeRotation;
         player.AddComponent<KeyboardTouchJumpInput>();
         player.AddComponent<PlayerController>().SetTuningConfig(tuningConfig);
+        player.AddComponent<PlayerVisual>().SetTuningConfig(tuningConfig);
 
         var lava = CreateBox("Lava", new Vector2(0f, -4.6f), GetLavaSize(tuningConfig), new Color(1f, 0.2f, 0.05f), "Lava", null, 1);
         lava.GetComponent<BoxCollider2D>().isTrigger = true;
@@ -95,6 +97,12 @@ public static class MvpRuntimeBootstrap
         {
             new GameObject("GameUI").AddComponent<GameUiController>();
         }
+
+        var player = Object.FindAnyObjectByType<PlayerController>();
+        if (player != null && player.GetComponent<PlayerVisual>() == null)
+        {
+            player.gameObject.AddComponent<PlayerVisual>().SetTuningConfig(Resources.Load<GameTuningConfig>(ConfigResourcePath));
+        }
     }
 
     private static void DestroyRuntimeObject(Component component)
@@ -134,6 +142,11 @@ public static class MvpRuntimeBootstrap
     private static Vector2 GetLavaSize(GameTuningConfig tuningConfig)
     {
         return tuningConfig != null ? tuningConfig.LavaSize : DefaultLavaSize;
+    }
+
+    private static float GetPlayerGravityScale(GameTuningConfig tuningConfig)
+    {
+        return tuningConfig != null ? tuningConfig.PlayerGravityScale : DefaultPlayerGravityScale;
     }
 
     private static GameObject CreateBox(string name, Vector2 position, Vector2 size, Color color, string tagName, Transform parent = null, int sortingOrder = 0)

@@ -14,6 +14,7 @@ public sealed class PlayerController : MonoBehaviour
     [Header("Movement")]
     [SerializeField] private float moveSpeed = 2.2f;
     [SerializeField] private float jumpForce = 7.2f;
+    [SerializeField] private float gravityScale = 2f;
     [SerializeField] private float heldJumpForce = 24f;
     [SerializeField] private float maxJumpHoldTime = 0.22f;
     [SerializeField] private float jumpCutVelocityMultiplier = 0.45f;
@@ -36,6 +37,8 @@ public sealed class PlayerController : MonoBehaviour
     [SerializeField] private float ledgeLandingInset = 0.06f;
 
     [Header("Platform Pass Through")]
+    [SerializeField] private float platformPassThroughLookAhead = 1f;
+    [SerializeField] private float platformPassThroughExtraWidth = 0.15f;
     [SerializeField] private string platformTag = "Platform";
 
     private Rigidbody2D body;
@@ -248,6 +251,7 @@ public sealed class PlayerController : MonoBehaviour
 
         moveSpeed = tuningConfig.PlayerMoveSpeed;
         jumpForce = tuningConfig.PlayerJumpForce;
+        gravityScale = tuningConfig.PlayerGravityScale;
         heldJumpForce = tuningConfig.HeldJumpForce;
         maxJumpHoldTime = tuningConfig.MaxJumpHoldTime;
         jumpCutVelocityMultiplier = tuningConfig.JumpCutVelocityMultiplier;
@@ -259,6 +263,13 @@ public sealed class PlayerController : MonoBehaviour
         edgeCheckDownDistance = tuningConfig.EdgeCheckDownDistance;
         ledgeLandingOverlapWidth = tuningConfig.LedgeLandingOverlapWidth;
         ledgeLandingInset = tuningConfig.LedgeLandingInset;
+        platformPassThroughLookAhead = tuningConfig.PlatformPassThroughLookAhead;
+        platformPassThroughExtraWidth = tuningConfig.PlatformPassThroughExtraWidth;
+
+        if (body != null)
+        {
+            body.gravityScale = Mathf.Max(0f, gravityScale);
+        }
     }
 
     private void ApplyPhysicsMaterial()
@@ -440,18 +451,35 @@ public sealed class PlayerController : MonoBehaviour
     private void IgnoreOverlappingAndNearbyPlatforms()
     {
         var bounds = playerCollider.bounds;
-        var upwardLookAhead = Mathf.Max(0.05f, body.linearVelocity.y * Time.fixedDeltaTime + 0.05f);
+        var upwardStep = body.linearVelocity.y * Time.fixedDeltaTime + 0.05f;
+        var upwardLookAhead = Mathf.Max(0.05f, Mathf.Max(platformPassThroughLookAhead, upwardStep));
         var queryCenter = bounds.center + Vector3.up * (upwardLookAhead * 0.5f);
-        var querySize = new Vector2(bounds.size.x + 0.1f, bounds.size.y + upwardLookAhead);
+        var querySize = new Vector2(bounds.size.x + Mathf.Max(0f, platformPassThroughExtraWidth), bounds.size.y + upwardLookAhead);
         var hits = Physics2D.OverlapBoxAll(queryCenter, querySize, 0f, groundLayer);
 
         foreach (var hit in hits)
         {
-            if (IsPassThroughPlatform(hit))
+            if (IsPassThroughPlatform(hit) && IsPlatformInJumpPath(hit))
             {
                 IgnorePlatform(hit);
             }
         }
+    }
+
+    private bool IsPlatformInJumpPath(Collider2D platform)
+    {
+        if (playerCollider == null || platform == null)
+        {
+            return false;
+        }
+
+        if (IsJumpStartGround(platform))
+        {
+            return false;
+        }
+
+        var playerFeetY = playerCollider.bounds.min.y + groundCheckRadius * 2f;
+        return platform.bounds.max.y > playerFeetY;
     }
 
     private void RestorePlatformsThatAreNoLongerOverlapping()
@@ -552,6 +580,8 @@ public sealed class PlayerController : MonoBehaviour
         var velocity = body.linearVelocity;
         velocity.y = jumpForce;
         body.linearVelocity = velocity;
+
+        IgnoreOverlappingAndNearbyPlatforms();
     }
 
     private bool HandleLanding(Collider2D landedGround)

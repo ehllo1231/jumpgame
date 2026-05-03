@@ -6,6 +6,7 @@ public sealed class GameTuningConfig : ScriptableObject
     [Header("Player")]
     [SerializeField] private float playerMoveSpeed = 2.25f;
     [SerializeField] private float playerJumpForce = 7.2f;
+    [SerializeField] private float playerGravityScale = 2f;
     [SerializeField] private float heldJumpForce = 24f;
     [SerializeField] private float maxJumpHoldTime = 0.22f;
     [SerializeField] private float jumpCutVelocityMultiplier = 0.45f;
@@ -17,6 +18,9 @@ public sealed class GameTuningConfig : ScriptableObject
     [SerializeField] private float edgeCheckDownDistance = 0.35f;
     [SerializeField] private float ledgeLandingOverlapWidth = 0.14f;
     [SerializeField] private float ledgeLandingInset = 0.06f;
+    [SerializeField] private float platformPassThroughLookAhead = 1f;
+    [SerializeField] private float platformPassThroughExtraWidth = 0.15f;
+    [SerializeField] private Vector2 playerVisualScale = Vector2.one;
 
     [Header("Platforms")]
     [SerializeField] private int platformCount = 45;
@@ -34,11 +38,14 @@ public sealed class GameTuningConfig : ScriptableObject
 
     [Header("Lava")]
     [SerializeField] private float lavaRiseSpeed = 0.7f;
+    [SerializeField] private float lavaAcceleration = 0.04f;
+    [SerializeField] private float lavaMaxRiseSpeed = 2.2f;
     [SerializeField] private Vector2 lavaSize = new Vector2(200f, 3f);
     [SerializeField] private bool lavaFollowCameraX = true;
 
     public float PlayerMoveSpeed => playerMoveSpeed;
     public float PlayerJumpForce => playerJumpForce;
+    public float PlayerGravityScale => playerGravityScale;
     public float HeldJumpForce => heldJumpForce;
     public float MaxJumpHoldTime => maxJumpHoldTime;
     public float JumpCutVelocityMultiplier => jumpCutVelocityMultiplier;
@@ -50,6 +57,9 @@ public sealed class GameTuningConfig : ScriptableObject
     public float EdgeCheckDownDistance => edgeCheckDownDistance;
     public float LedgeLandingOverlapWidth => ledgeLandingOverlapWidth;
     public float LedgeLandingInset => ledgeLandingInset;
+    public float PlatformPassThroughLookAhead => platformPassThroughLookAhead;
+    public float PlatformPassThroughExtraWidth => platformPassThroughExtraWidth;
+    public Vector2 PlayerVisualScale => playerVisualScale;
 
     public int PlatformCount => platformCount;
     public float FirstPlatformY => firstPlatformY;
@@ -65,6 +75,8 @@ public sealed class GameTuningConfig : ScriptableObject
     public int RandomSeed => randomSeed;
 
     public float LavaRiseSpeed => lavaRiseSpeed;
+    public float LavaAcceleration => lavaAcceleration;
+    public float LavaMaxRiseSpeed => lavaMaxRiseSpeed;
     public Vector2 LavaSize => lavaSize;
     public bool LavaFollowCameraX => lavaFollowCameraX;
 }

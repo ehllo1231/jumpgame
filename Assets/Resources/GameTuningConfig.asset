@@ -11,11 +11,12 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7620f10f375d4a04e88f2bcfb5685977, type: 3}
   m_Name: GameTuningConfig
-  m_EditorClassIdentifier:
-  playerMoveSpeed: 2.25
+  m_EditorClassIdentifier: 
+  playerMoveSpeed: 3
   playerJumpForce: 7.2
+  playerGravityScale: 2
   heldJumpForce: 24
-  maxJumpHoldTime: 0.22
+  maxJumpHoldTime: 0.35
   jumpCutVelocityMultiplier: 0.45
   useMovementBounds: 0
   playerMinX: -3.2
@@ -25,12 +26,15 @@ MonoBehaviour:
   edgeCheckDownDistance: 0.35
   ledgeLandingOverlapWidth: 0.14
   ledgeLandingInset: 0.06
+  platformPassThroughLookAhead: 1
+  platformPassThroughExtraWidth: 0.15
+  playerVisualScale: {x: 1.4, y: 1.4}
   platformCount: 45
   firstPlatformY: 1.8
-  platformXRange: {x: -2.6, y: 2.6}
-  platformVerticalSpacingRange: {x: 1.25, y: 1.75}
-  platformWidthRange: {x: 1.8, y: 3}
-  platformMaxHorizontalStep: 1.8
+  platformXRange: {x: -1000, y: 1000}
+  platformVerticalSpacingRange: {x: 1.5, y: 2.5}
+  platformWidthRange: {x: 2, y: 7}
+  platformMaxHorizontalStep: 6
   platformHeight: 0.25
   keepSpawningPlatforms: 1
   platformSpawnAheadDistance: 18
@@ -38,5 +42,7 @@ MonoBehaviour:
   useRandomSeed: 0
   randomSeed: 12345
   lavaRiseSpeed: 0.7
+  lavaAcceleration: 0.04
+  lavaMaxRiseSpeed: 2.2
   lavaSize: {x: 200, y: 3}
   lavaFollowCameraX: 1

@@ -48,4 +48,5 @@ When working on this project, always prioritize clean, maintainable, and extensi
 - Make minimal, focused changes for each task.
 - Do not rewrite unrelated code unless necessary.
 - Preserve existing behavior unless the task explicitly requires changing it.
+- Do not modify user-tuned values in `Assets/Resources/GameTuningConfig.asset` unless the user explicitly asks for those value changes. When new tuning fields are required, add only the new fields and preserve all existing values.
 - Keep the project organized and consistent with the existing style.
