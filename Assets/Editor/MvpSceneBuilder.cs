@@ -8,10 +8,12 @@ public static class MvpSceneBuilder
     private const string ScenePath = "Assets/Scenes/VerticalClimbMvp.unity";
     private const string ConfigAssetPath = "Assets/Resources/GameTuningConfig.asset";
     private const float DefaultPlayerGravityScale = 2f;
+    private const float DefaultCameraOrthographicSize = 5f;
     private static readonly Vector2 StartPlatformPosition = Vector2.zero;
     private static readonly Vector2 StartPlatformSize = new Vector2(4f, 0.35f);
     private static readonly Vector2 PlayerSize = new Vector2(0.6f, 0.8f);
     private static readonly Vector2 DefaultLavaSize = new Vector2(200f, 3f);
+    private static readonly Vector2 DefaultTargetAspect = new Vector2(16f, 9f);
 
     [MenuItem("Tools/Merado/Create Vertical Climb MVP Scene")]
     public static void CreateScene()
@@ -62,11 +64,8 @@ public static class MvpSceneBuilder
         var cameraObject = new GameObject("Main Camera");
         cameraObject.tag = "MainCamera";
         cameraObject.transform.position = new Vector3(0f, 2.2f, -10f);
-        var camera = cameraObject.AddComponent<Camera>();
-        camera.orthographic = true;
-        camera.orthographicSize = 5f;
-        camera.backgroundColor = new Color(0.08f, 0.09f, 0.1f);
-        camera.clearFlags = CameraClearFlags.SolidColor;
+        cameraObject.AddComponent<Camera>();
+        ConfigureCamera(cameraObject, tuningConfig);
         var cameraFollow = cameraObject.AddComponent<CameraFollow>();
         cameraFollow.SetTarget(player.transform);
         cameraFollow.SetFollowDownward(true);
@@ -104,6 +103,26 @@ public static class MvpSceneBuilder
     private static float GetPlayerGravityScale(GameTuningConfig tuningConfig)
     {
         return tuningConfig != null ? tuningConfig.PlayerGravityScale : DefaultPlayerGravityScale;
+    }
+
+    private static void ConfigureCamera(GameObject cameraObject, GameTuningConfig tuningConfig)
+    {
+        var camera = cameraObject.GetComponent<Camera>();
+        camera.orthographic = true;
+        camera.orthographicSize = GetCameraOrthographicSize(tuningConfig);
+        camera.backgroundColor = new Color(0.08f, 0.09f, 0.1f);
+        camera.clearFlags = CameraClearFlags.SolidColor;
+        cameraObject.AddComponent<ScreenPresentationController>().Configure(GetTargetAspect(tuningConfig));
+    }
+
+    private static float GetCameraOrthographicSize(GameTuningConfig tuningConfig)
+    {
+        return tuningConfig != null ? Mathf.Max(0.1f, tuningConfig.CameraOrthographicSize) : DefaultCameraOrthographicSize;
+    }
+
+    private static Vector2 GetTargetAspect(GameTuningConfig tuningConfig)
+    {
+        return tuningConfig != null ? tuningConfig.TargetAspect : DefaultTargetAspect;
     }
 
     private static Vector2 GetStandingPosition(Vector2 platformPosition, Vector2 platformSize, Vector2 playerSize)

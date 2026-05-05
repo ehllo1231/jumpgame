@@ -34,7 +34,7 @@ public sealed class PlayerController : MonoBehaviour
     [SerializeField] private float edgeCheckForwardDistance;
     [SerializeField] private float edgeCheckDownDistance = 0.35f;
     [SerializeField] private float ledgeLandingOverlapWidth = 0.14f;
-    [SerializeField] private float ledgeLandingInset = 0.06f;
+    [SerializeField] private bool flipDirectionOnSamePlatformLanding = true;
 
     [Header("Platform Pass Through")]
     [SerializeField] private float platformPassThroughLookAhead = 1f;
@@ -262,7 +262,7 @@ public sealed class PlayerController : MonoBehaviour
         edgeCheckForwardDistance = tuningConfig.EdgeCheckForwardDistance;
         edgeCheckDownDistance = tuningConfig.EdgeCheckDownDistance;
         ledgeLandingOverlapWidth = tuningConfig.LedgeLandingOverlapWidth;
-        ledgeLandingInset = tuningConfig.LedgeLandingInset;
+        flipDirectionOnSamePlatformLanding = tuningConfig.FlipDirectionOnSamePlatformLanding;
         platformPassThroughLookAhead = tuningConfig.PlatformPassThroughLookAhead;
         platformPassThroughExtraWidth = tuningConfig.PlatformPassThroughExtraWidth;
 
@@ -317,9 +317,8 @@ public sealed class PlayerController : MonoBehaviour
     {
         if (flipAtPlatformEdges && ground != null)
         {
-            if (HasReachedPlatformEdge(ground, out var targetCenterX))
+            if (HasReachedPlatformEdge(ground))
             {
-                SnapInsidePlatformEdge(targetCenterX);
                 FlipDirection();
                 return true;
             }
@@ -336,10 +335,8 @@ public sealed class PlayerController : MonoBehaviour
         return false;
     }
 
-    private bool HasReachedPlatformEdge(Collider2D ground, out float targetCenterX)
+    private bool HasReachedPlatformEdge(Collider2D ground)
     {
-        targetCenterX = body.position.x;
-
         if (ground == null || playerCollider == null)
         {
             return false;
@@ -347,21 +344,27 @@ public sealed class PlayerController : MonoBehaviour
 
         var playerBounds = playerCollider.bounds;
         var groundBounds = ground.bounds;
-        var edgeTolerance = Mathf.Max(0f, edgeCheckForwardDistance);
+        var edgeLookAhead = GetEdgeLookAhead();
 
-        if (moveDirection < 0 && playerBounds.min.x <= groundBounds.min.x + edgeTolerance)
+        if (moveDirection < 0)
         {
-            targetCenterX = groundBounds.min.x + playerBounds.extents.x;
-            return true;
+            return playerBounds.min.x - edgeLookAhead <= groundBounds.min.x;
         }
 
-        if (moveDirection > 0 && playerBounds.max.x >= groundBounds.max.x - edgeTolerance)
+        if (moveDirection > 0)
         {
-            targetCenterX = groundBounds.max.x - playerBounds.extents.x;
-            return true;
+            return playerBounds.max.x + edgeLookAhead >= groundBounds.max.x;
         }
 
         return false;
+    }
+
+    private float GetEdgeLookAhead()
+    {
+        var movementSpeed = Mathf.Max(Mathf.Abs(body.linearVelocity.x), Mathf.Abs(moveSpeed));
+        var velocityStep = movementSpeed * Time.fixedDeltaTime;
+        var configuredDistance = Mathf.Max(0f, edgeCheckForwardDistance);
+        return Mathf.Max(configuredDistance, velocityStep);
     }
 
     private bool HasReachedMovementBound()
@@ -394,20 +397,12 @@ public sealed class PlayerController : MonoBehaviour
 
         if (playerBounds.center.x >= groundBounds.center.x)
         {
-            SnapInsidePlatformEdge(groundBounds.max.x - ledgeLandingInset - playerBounds.extents.x);
             moveDirection = -1;
             return true;
         }
 
-        SnapInsidePlatformEdge(groundBounds.min.x + ledgeLandingInset + playerBounds.extents.x);
         moveDirection = 1;
         return true;
-    }
-
-    private void SnapInsidePlatformEdge(float targetCenterX)
-    {
-        var position = body.position;
-        body.position = new Vector2(targetCenterX, position.y);
     }
 
     private bool IsValidGround(Collider2D hit)
@@ -595,7 +590,7 @@ public sealed class PlayerController : MonoBehaviour
 
         isWaitingForJumpLanding = false;
 
-        if (IsJumpStartGround(landedGround))
+        if (flipDirectionOnSamePlatformLanding && IsJumpStartGround(landedGround))
         {
             FlipDirection();
             ClearJumpStartGround();

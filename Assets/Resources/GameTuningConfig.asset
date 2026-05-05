@@ -28,21 +28,39 @@ MonoBehaviour:
   ledgeLandingInset: 0.06
   platformPassThroughLookAhead: 1
   platformPassThroughExtraWidth: 0.15
+  flipDirectionOnSamePlatformLanding: 0
   playerVisualScale: {x: 1.4, y: 1.4}
+  targetAspect: {x: 16, y: 9}
+  cameraOrthographicSize: 5
   platformCount: 45
   firstPlatformY: 1.8
   platformXRange: {x: -1000, y: 1000}
-  platformVerticalSpacingRange: {x: 1.5, y: 2.5}
-  platformWidthRange: {x: 2, y: 7}
+  platformVerticalSpacingRange: {x: 3, y: 3}
+  platformWidthRange: {x: 5, y: 5}
   platformMaxHorizontalStep: 6
+  platformMinCountPerRow: 1
+  platformMaxCountPerRow: 3
+  platformAdditionalSameRowChance: 0.45
+  platformSameRowMinGap: 0.8
+  platformSameRowSpawnRadius: 8
+  platformSameRowPlacementAttempts: 20
   platformHeight: 0.25
   keepSpawningPlatforms: 1
   platformSpawnAheadDistance: 18
   platformCleanupBelowDistance: 30
   useRandomSeed: 0
   randomSeed: 12345
-  lavaRiseSpeed: 0.7
+  spikePlatformStartScore: 1
+  spikePlatformChance: 1
+  spikeWidth: 0.5
+  spikeHeight: 0.35
+  spikeEdgePadding: 0.5
+  spikeToothWidth: 0.35
+  spikeMinHorizontalDistanceFromPreviousRow: 0
+  spikeColor: {r: 0.9, g: 0.12, b: 0.08, a: 1}
+  lavaRiseSpeed: 1.2
   lavaAcceleration: 0.04
-  lavaMaxRiseSpeed: 2.2
+  lavaMaxRiseSpeed: 1.2
+  lavaMaxDistanceBelowPlayer: 6
   lavaSize: {x: 200, y: 3}
   lavaFollowCameraX: 1

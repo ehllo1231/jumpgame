@@ -4,10 +4,12 @@ public static class MvpRuntimeBootstrap
 {
     private const string ConfigResourcePath = "GameTuningConfig";
     private const float DefaultPlayerGravityScale = 2f;
+    private const float DefaultCameraOrthographicSize = 5f;
     private static readonly Vector2 StartPlatformPosition = Vector2.zero;
     private static readonly Vector2 StartPlatformSize = new Vector2(4f, 0.35f);
     private static readonly Vector2 PlayerSize = new Vector2(0.6f, 0.8f);
     private static readonly Vector2 DefaultLavaSize = new Vector2(200f, 3f);
+    private static readonly Vector2 DefaultTargetAspect = new Vector2(16f, 9f);
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void CreatePlayableMvpIfSceneIsEmpty()
@@ -68,11 +70,7 @@ public static class MvpRuntimeBootstrap
         var cameraObject = GetOrCreateMainCamera();
         cameraObject.transform.position = new Vector3(0f, 2.2f, -10f);
 
-        var camera = cameraObject.GetComponent<Camera>();
-        camera.orthographic = true;
-        camera.orthographicSize = 5f;
-        camera.backgroundColor = new Color(0.08f, 0.09f, 0.1f);
-        camera.clearFlags = CameraClearFlags.SolidColor;
+        ConfigureCamera(cameraObject, tuningConfig);
 
         var cameraFollow = cameraObject.GetComponent<CameraFollow>();
         if (cameraFollow == null)
@@ -100,6 +98,8 @@ public static class MvpRuntimeBootstrap
         {
             new GameObject("GameUI").AddComponent<GameUiController>();
         }
+
+        ConfigureCamera(GetOrCreateMainCamera(), Resources.Load<GameTuningConfig>(ConfigResourcePath));
 
         var player = Object.FindAnyObjectByType<PlayerController>();
         if (player != null && player.GetComponent<PlayerVisual>() == null)
@@ -150,6 +150,38 @@ public static class MvpRuntimeBootstrap
     private static float GetPlayerGravityScale(GameTuningConfig tuningConfig)
     {
         return tuningConfig != null ? tuningConfig.PlayerGravityScale : DefaultPlayerGravityScale;
+    }
+
+    private static void ConfigureCamera(GameObject cameraObject, GameTuningConfig tuningConfig)
+    {
+        if (cameraObject == null)
+        {
+            return;
+        }
+
+        var camera = cameraObject.GetComponent<Camera>();
+        camera.orthographic = true;
+        camera.orthographicSize = GetCameraOrthographicSize(tuningConfig);
+        camera.backgroundColor = new Color(0.08f, 0.09f, 0.1f);
+        camera.clearFlags = CameraClearFlags.SolidColor;
+
+        var presentation = cameraObject.GetComponent<ScreenPresentationController>();
+        if (presentation == null)
+        {
+            presentation = cameraObject.AddComponent<ScreenPresentationController>();
+        }
+
+        presentation.Configure(GetTargetAspect(tuningConfig));
+    }
+
+    private static float GetCameraOrthographicSize(GameTuningConfig tuningConfig)
+    {
+        return tuningConfig != null ? Mathf.Max(0.1f, tuningConfig.CameraOrthographicSize) : DefaultCameraOrthographicSize;
+    }
+
+    private static Vector2 GetTargetAspect(GameTuningConfig tuningConfig)
+    {
+        return tuningConfig != null ? tuningConfig.TargetAspect : DefaultTargetAspect;
     }
 
     private static Vector2 GetStandingPosition(Vector2 platformPosition, Vector2 platformSize, Vector2 playerSize)
