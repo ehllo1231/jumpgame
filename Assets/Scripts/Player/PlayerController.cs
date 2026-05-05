@@ -580,6 +580,8 @@ public sealed class PlayerController : MonoBehaviour
         var velocity = body.linearVelocity;
         velocity.y = jumpForce;
         body.linearVelocity = velocity;
+        isGrounded = false;
+        currentGround = null;
 
         IgnoreOverlappingAndNearbyPlatforms();
     }

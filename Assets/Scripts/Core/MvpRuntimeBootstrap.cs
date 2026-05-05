@@ -4,6 +4,9 @@ public static class MvpRuntimeBootstrap
 {
     private const string ConfigResourcePath = "GameTuningConfig";
     private const float DefaultPlayerGravityScale = 2f;
+    private static readonly Vector2 StartPlatformPosition = Vector2.zero;
+    private static readonly Vector2 StartPlatformSize = new Vector2(4f, 0.35f);
+    private static readonly Vector2 PlayerSize = new Vector2(0.6f, 0.8f);
     private static readonly Vector2 DefaultLavaSize = new Vector2(200f, 3f);
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -44,10 +47,10 @@ public static class MvpRuntimeBootstrap
         new GameObject("GameManager").AddComponent<GameManager>();
 
         var platformsParent = new GameObject("Platforms").transform;
-        var startPlatform = CreateBox("StartPlatform", new Vector2(0f, 0f), new Vector2(4f, 0.35f), new Color(0.2f, 0.55f, 0.38f), "Platform", platformsParent);
+        var startPlatform = CreateBox("StartPlatform", StartPlatformPosition, StartPlatformSize, new Color(0.2f, 0.55f, 0.38f), "Platform", platformsParent);
         AssignPlatformScore(startPlatform, 0);
 
-        var player = CreateBox("Player", new Vector2(0f, 0.75f), new Vector2(0.6f, 0.8f), new Color(0.2f, 0.55f, 0.95f), "Player", null, 2);
+        var player = CreateBox("Player", GetStandingPosition(StartPlatformPosition, StartPlatformSize, PlayerSize), PlayerSize, new Color(0.2f, 0.55f, 0.95f), "Player", null, 2);
         var playerBody = player.AddComponent<Rigidbody2D>();
         playerBody.gravityScale = GetPlayerGravityScale(tuningConfig);
         playerBody.interpolation = RigidbodyInterpolation2D.Interpolate;
@@ -147,6 +150,11 @@ public static class MvpRuntimeBootstrap
     private static float GetPlayerGravityScale(GameTuningConfig tuningConfig)
     {
         return tuningConfig != null ? tuningConfig.PlayerGravityScale : DefaultPlayerGravityScale;
+    }
+
+    private static Vector2 GetStandingPosition(Vector2 platformPosition, Vector2 platformSize, Vector2 playerSize)
+    {
+        return new Vector2(platformPosition.x, platformPosition.y + platformSize.y * 0.5f + playerSize.y * 0.5f);
     }
 
     private static GameObject CreateBox(string name, Vector2 position, Vector2 size, Color color, string tagName, Transform parent = null, int sortingOrder = 0)

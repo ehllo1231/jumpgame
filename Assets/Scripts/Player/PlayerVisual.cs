@@ -8,6 +8,7 @@ public sealed class PlayerVisual : MonoBehaviour
     [SerializeField] private GameTuningConfig tuningConfig;
     [SerializeField] private PlayerController playerController;
     [SerializeField] private Rigidbody2D body;
+    [SerializeField] private Collider2D playerCollider;
     [SerializeField] private Transform visualRoot;
     [SerializeField] private SpriteRenderer spriteRenderer;
 
@@ -18,6 +19,9 @@ public sealed class PlayerVisual : MonoBehaviour
     [SerializeField] private string walkFramesResourcePath = "Image/char";
     [SerializeField] private float generatedSpritePixelsPerUnit = 550f;
     [SerializeField] private Vector2 visualScale = Vector2.one;
+    [SerializeField] private bool fitVisualToColliderHeight = true;
+    [SerializeField] private bool alignVisualBottomToCollider = true;
+    [SerializeField] private float visualGroundOffset;
 
     [Header("Animation")]
     [SerializeField] private float walkFramesPerSecond = 8f;
@@ -83,6 +87,11 @@ public sealed class PlayerVisual : MonoBehaviour
         if (body == null)
         {
             body = GetComponent<Rigidbody2D>();
+        }
+
+        if (playerCollider == null)
+        {
+            playerCollider = GetComponent<Collider2D>();
         }
 
         EnsureVisualRoot();
@@ -194,12 +203,78 @@ public sealed class PlayerVisual : MonoBehaviour
 
     private void ApplyVisualScale()
     {
-        transform.localScale = new Vector3(Mathf.Max(0.01f, visualScale.x), Mathf.Max(0.01f, visualScale.y), 1f);
-
-        if (visualRoot != null)
+        if (visualRoot == null)
         {
-            visualRoot.localScale = Vector3.one;
+            return;
         }
+
+        var sprite = spriteRenderer != null ? spriteRenderer.sprite : null;
+        if (fitVisualToColliderHeight && playerCollider != null && sprite != null)
+        {
+            ApplyColliderRelativeVisualScale(sprite);
+            AlignVisualBottom(sprite);
+            return;
+        }
+
+        visualRoot.localScale = new Vector3(Mathf.Max(0.01f, visualScale.x), Mathf.Max(0.01f, visualScale.y), 1f);
+        AlignVisualBottom(sprite);
+    }
+
+    private void ApplyColliderRelativeVisualScale(Sprite sprite)
+    {
+        var parentScale = GetSafeParentScale();
+        var colliderLocalHeight = GetColliderLocalBounds().size.y;
+        var targetLocalHeight = Mathf.Max(0.01f, colliderLocalHeight * Mathf.Max(0.01f, visualScale.y));
+        var spriteLocalHeight = Mathf.Max(0.0001f, sprite.bounds.size.y);
+        var uniformWorldScale = targetLocalHeight * parentScale.y / spriteLocalHeight;
+        var horizontalScaleMultiplier = Mathf.Max(0.01f, visualScale.x) / Mathf.Max(0.01f, visualScale.y);
+
+        // Compensate for the player's non-uniform physics scale so the sprite keeps its source aspect ratio.
+        visualRoot.localScale = new Vector3(uniformWorldScale * horizontalScaleMultiplier / parentScale.x, uniformWorldScale / parentScale.y, 1f);
+    }
+
+    private void AlignVisualBottom(Sprite sprite)
+    {
+        if (!alignVisualBottomToCollider || playerCollider == null || visualRoot == null || sprite == null)
+        {
+            return;
+        }
+
+        var colliderBottomLocal = GetColliderLocalBounds().min.y;
+        var localPosition = visualRoot.localPosition;
+        localPosition.y = colliderBottomLocal - visualRoot.localScale.y * sprite.bounds.min.y + visualGroundOffset;
+        visualRoot.localPosition = localPosition;
+    }
+
+    private Vector2 GetSafeParentScale()
+    {
+        var scale = transform.lossyScale;
+        return new Vector2(Mathf.Max(0.0001f, Mathf.Abs(scale.x)), Mathf.Max(0.0001f, Mathf.Abs(scale.y)));
+    }
+
+    private Bounds GetColliderLocalBounds()
+    {
+        // Local collider data avoids visual jitter from Rigidbody interpolation and world bounds during jumps.
+        if (playerCollider is BoxCollider2D boxCollider)
+        {
+            return new Bounds(boxCollider.offset, boxCollider.size);
+        }
+
+        if (playerCollider is CapsuleCollider2D capsuleCollider)
+        {
+            return new Bounds(capsuleCollider.offset, capsuleCollider.size);
+        }
+
+        if (playerCollider is CircleCollider2D circleCollider)
+        {
+            var size = Vector2.one * circleCollider.radius * 2f;
+            return new Bounds(circleCollider.offset, size);
+        }
+
+        var parentScale = GetSafeParentScale();
+        var localSize = new Vector3(playerCollider.bounds.size.x / parentScale.x, playerCollider.bounds.size.y / parentScale.y, 0f);
+        var localCenter = transform.InverseTransformPoint(playerCollider.bounds.center);
+        return new Bounds(localCenter, localSize);
     }
 
     private void AnimateWalk()
@@ -235,10 +310,18 @@ public sealed class PlayerVisual : MonoBehaviour
 
     private void SetSprite(Sprite sprite)
     {
-        if (spriteRenderer != null && sprite != null && spriteRenderer.sprite != sprite)
+        if (spriteRenderer == null || sprite == null)
         {
-            spriteRenderer.sprite = sprite;
+            return;
         }
+
+        if (spriteRenderer.sprite == sprite)
+        {
+            return;
+        }
+
+        spriteRenderer.sprite = sprite;
+        ApplyVisualScale();
     }
 
     private Sprite GetJumpSprite()
