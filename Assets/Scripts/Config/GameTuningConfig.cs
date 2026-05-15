@@ -10,6 +10,12 @@ public sealed class GameTuningConfig : ScriptableObject
     [SerializeField] private float heldJumpForce = 24f;
     [SerializeField] private float maxJumpHoldTime = 0.22f;
     [SerializeField] private float jumpCutVelocityMultiplier = 0.45f;
+    [SerializeField] private int maxAirJumps = 1;
+    [SerializeField] private float airJumpForce = 6.2f;
+    [SerializeField] private float airJumpMaxHoldTime = 0.1f;
+    [SerializeField] private float airJumpCutVelocityMultiplier = 0.6f;
+    [SerializeField] private float airJumpHorizontalBoostMultiplier = 1.25f;
+    [SerializeField] private float airJumpBoostDuration = 0.18f;
     [SerializeField] private bool useMovementBounds;
     [SerializeField] private float playerMinX = -3.2f;
     [SerializeField] private float playerMaxX = 3.2f;
@@ -71,6 +77,12 @@ public sealed class GameTuningConfig : ScriptableObject
     public float HeldJumpForce => heldJumpForce;
     public float MaxJumpHoldTime => maxJumpHoldTime;
     public float JumpCutVelocityMultiplier => jumpCutVelocityMultiplier;
+    public int MaxAirJumps => maxAirJumps;
+    public float AirJumpForce => airJumpForce;
+    public float AirJumpMaxHoldTime => airJumpMaxHoldTime;
+    public float AirJumpCutVelocityMultiplier => airJumpCutVelocityMultiplier;
+    public float AirJumpHorizontalBoostMultiplier => airJumpHorizontalBoostMultiplier;
+    public float AirJumpBoostDuration => airJumpBoostDuration;
     public bool UseMovementBounds => useMovementBounds;
     public float PlayerMinX => playerMinX;
     public float PlayerMaxX => playerMaxX;

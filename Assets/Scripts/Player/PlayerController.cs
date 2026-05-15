@@ -18,6 +18,12 @@ public sealed class PlayerController : MonoBehaviour
     [SerializeField] private float heldJumpForce = 24f;
     [SerializeField] private float maxJumpHoldTime = 0.22f;
     [SerializeField] private float jumpCutVelocityMultiplier = 0.45f;
+    [SerializeField] private int maxAirJumps = 1;
+    [SerializeField] private float airJumpForce = 6.2f;
+    [SerializeField] private float airJumpMaxHoldTime = 0.1f;
+    [SerializeField] private float airJumpCutVelocityMultiplier = 0.6f;
+    [SerializeField] private float airJumpHorizontalBoostMultiplier = 1.25f;
+    [SerializeField] private float airJumpBoostDuration = 0.18f;
     [SerializeField] private bool keepAirMomentum = true;
     [SerializeField] private bool useFrictionlessMaterial = true;
     [SerializeField] private bool useMovementBounds;
@@ -41,6 +47,12 @@ public sealed class PlayerController : MonoBehaviour
     [SerializeField] private float platformPassThroughExtraWidth = 0.15f;
     [SerializeField] private string platformTag = "Platform";
 
+    private enum JumpKind
+    {
+        Ground,
+        Air
+    }
+
     private Rigidbody2D body;
     private Collider2D playerCollider;
     private IJumpInput jumpInput;
@@ -48,10 +60,15 @@ public sealed class PlayerController : MonoBehaviour
     private bool isGrounded;
     private Collider2D currentGround;
     private bool jumpQueued;
+    private JumpKind queuedJumpKind;
     private bool isJumpHeld;
     private bool jumpReleaseQueued;
     private bool isVariableJumpActive;
+    private JumpKind activeVariableJumpKind;
     private float jumpHoldTimer;
+    private int airJumpsRemaining;
+    private bool isAirJumpBoostActive;
+    private float airJumpBoostTimer;
     private bool isJumpPassThroughActive;
     private bool wasGrounded;
     private bool isWaitingForJumpLanding;
@@ -80,6 +97,7 @@ public sealed class PlayerController : MonoBehaviour
         body.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
         ApplyPhysicsMaterial();
         ApplyConfig();
+        ResetAirJumps();
 
         if (groundCheck == null)
         {
@@ -131,15 +149,13 @@ public sealed class PlayerController : MonoBehaviour
             return;
         }
 
-        var canJump = TryGetGround(out _);
-
-        if (jumpInput != null && jumpInput.JumpPressedThisFrame && canJump)
-        {
-            jumpQueued = true;
-        }
-
         if (jumpInput != null)
         {
+            if (jumpInput.JumpPressedThisFrame)
+            {
+                TryQueueJump();
+            }
+
             isJumpHeld = jumpInput.JumpHeld;
 
             if (jumpInput.JumpReleasedThisFrame)
@@ -157,8 +173,15 @@ public sealed class PlayerController : MonoBehaviour
         }
 
         UpdatePlatformPassThrough();
+        UpdateAirJumpBoostTimer();
         wasGrounded = isGrounded;
         isGrounded = TryGetGround(out currentGround);
+
+        if (isGrounded)
+        {
+            ResetAirJumps();
+            StopAirJumpBoost();
+        }
 
         var flippedOnLanding = false;
         if (!wasGrounded && isGrounded)
@@ -182,11 +205,36 @@ public sealed class PlayerController : MonoBehaviour
 
         if (jumpQueued)
         {
-            Jump();
+            PerformQueuedJump();
             jumpQueued = false;
         }
 
         ApplyVariableJump();
+    }
+
+    private void TryQueueJump()
+    {
+        if (TryGetGround(out _))
+        {
+            QueueJump(JumpKind.Ground);
+            return;
+        }
+
+        if (CanAirJump())
+        {
+            QueueJump(JumpKind.Air);
+        }
+    }
+
+    private void QueueJump(JumpKind jumpKind)
+    {
+        queuedJumpKind = jumpKind;
+        jumpQueued = true;
+    }
+
+    private bool CanAirJump()
+    {
+        return GetMaxAirJumps() > 0 && airJumpsRemaining > 0;
     }
 
     private bool TryGetGround(out Collider2D ground)
@@ -255,6 +303,12 @@ public sealed class PlayerController : MonoBehaviour
         heldJumpForce = tuningConfig.HeldJumpForce;
         maxJumpHoldTime = tuningConfig.MaxJumpHoldTime;
         jumpCutVelocityMultiplier = tuningConfig.JumpCutVelocityMultiplier;
+        maxAirJumps = tuningConfig.MaxAirJumps;
+        airJumpForce = tuningConfig.AirJumpForce;
+        airJumpMaxHoldTime = tuningConfig.AirJumpMaxHoldTime;
+        airJumpCutVelocityMultiplier = tuningConfig.AirJumpCutVelocityMultiplier;
+        airJumpHorizontalBoostMultiplier = tuningConfig.AirJumpHorizontalBoostMultiplier;
+        airJumpBoostDuration = tuningConfig.AirJumpBoostDuration;
         useMovementBounds = tuningConfig.UseMovementBounds;
         minX = tuningConfig.PlayerMinX;
         maxX = tuningConfig.PlayerMaxX;
@@ -270,6 +324,8 @@ public sealed class PlayerController : MonoBehaviour
         {
             body.gravityScale = Mathf.Max(0f, gravityScale);
         }
+
+        ClampAirJumpState();
     }
 
     private void ApplyPhysicsMaterial()
@@ -558,27 +614,130 @@ public sealed class PlayerController : MonoBehaviour
     private void ApplyHorizontalMovement()
     {
         var velocity = body.linearVelocity;
-        velocity.x = moveDirection * moveSpeed;
+        velocity.x = moveDirection * GetCurrentMoveSpeed();
         body.linearVelocity = velocity;
     }
 
-    private void Jump()
+    private float GetCurrentMoveSpeed()
     {
+        var speed = moveSpeed;
+        if (isAirJumpBoostActive)
+        {
+            speed *= Mathf.Max(1f, airJumpHorizontalBoostMultiplier);
+        }
+
+        return speed;
+    }
+
+    private void PerformQueuedJump()
+    {
+        if (queuedJumpKind == JumpKind.Air && !isGrounded)
+        {
+            if (CanAirJump())
+            {
+                PerformAirJump();
+            }
+
+            return;
+        }
+
+        PerformGroundJump();
+    }
+
+    private void PerformGroundJump()
+    {
+        ResetAirJumps();
         jumpStartGround = currentGround;
         jumpStartPlatformScore = GetPlatformScore(currentGround);
         isWaitingForJumpLanding = jumpStartGround != null;
-        isJumpPassThroughActive = true;
-        isVariableJumpActive = true;
-        jumpHoldTimer = 0f;
-        isJumpHeld = jumpInput != null && jumpInput.JumpHeld;
-        jumpReleaseQueued = false;
+        StartVariableJump(JumpKind.Ground);
+
         var velocity = body.linearVelocity;
         velocity.y = jumpForce;
         body.linearVelocity = velocity;
         isGrounded = false;
         currentGround = null;
 
+        StartPlatformPassThrough();
+    }
+
+    private void PerformAirJump()
+    {
+        airJumpsRemaining = Mathf.Max(0, airJumpsRemaining - 1);
+        StartVariableJump(JumpKind.Air);
+        StartAirJumpBoost();
+
+        var velocity = body.linearVelocity;
+        velocity.x = moveDirection * GetCurrentMoveSpeed();
+        velocity.y = GetAirJumpVerticalVelocity(velocity.y);
+        body.linearVelocity = velocity;
+        isGrounded = false;
+        currentGround = null;
+
+        StartPlatformPassThrough();
+    }
+
+    private float GetAirJumpVerticalVelocity(float currentVelocityY)
+    {
+        return Mathf.Max(currentVelocityY, Mathf.Max(0f, airJumpForce));
+    }
+
+    private void StartVariableJump(JumpKind jumpKind)
+    {
+        activeVariableJumpKind = jumpKind;
+        isVariableJumpActive = true;
+        jumpHoldTimer = 0f;
+        isJumpHeld = jumpInput != null && jumpInput.JumpHeld;
+        jumpReleaseQueued = false;
+    }
+
+    private void StartPlatformPassThrough()
+    {
+        isJumpPassThroughActive = true;
         IgnoreOverlappingAndNearbyPlatforms();
+    }
+
+    private void UpdateAirJumpBoostTimer()
+    {
+        if (!isAirJumpBoostActive)
+        {
+            return;
+        }
+
+        airJumpBoostTimer -= Time.fixedDeltaTime;
+        if (airJumpBoostTimer <= 0f)
+        {
+            StopAirJumpBoost();
+        }
+    }
+
+    private void StartAirJumpBoost()
+    {
+        airJumpBoostTimer = Mathf.Max(0f, airJumpBoostDuration);
+        isAirJumpBoostActive = airJumpBoostTimer > 0f;
+    }
+
+    private void StopAirJumpBoost()
+    {
+        isAirJumpBoostActive = false;
+        airJumpBoostTimer = 0f;
+    }
+
+    private void ResetAirJumps()
+    {
+        airJumpsRemaining = GetMaxAirJumps();
+    }
+
+    private void ClampAirJumpState()
+    {
+        airJumpsRemaining = Mathf.Clamp(airJumpsRemaining, 0, GetMaxAirJumps());
+        airJumpBoostTimer = Mathf.Max(0f, airJumpBoostTimer);
+        isAirJumpBoostActive = isAirJumpBoostActive && airJumpBoostTimer > 0f;
+    }
+
+    private int GetMaxAirJumps()
+    {
+        return Mathf.Max(0, maxAirJumps);
     }
 
     private bool HandleLanding(Collider2D landedGround)
@@ -641,7 +800,7 @@ public sealed class PlayerController : MonoBehaviour
             return;
         }
 
-        if (!isJumpHeld || jumpHoldTimer >= maxJumpHoldTime || body.linearVelocity.y <= 0f)
+        if (!isJumpHeld || jumpHoldTimer >= GetActiveMaxJumpHoldTime() || body.linearVelocity.y <= 0f)
         {
             isVariableJumpActive = false;
             return;
@@ -662,8 +821,22 @@ public sealed class PlayerController : MonoBehaviour
         }
 
         var velocity = body.linearVelocity;
-        velocity.y *= jumpCutVelocityMultiplier;
+        velocity.y *= GetActiveJumpCutVelocityMultiplier();
         body.linearVelocity = velocity;
+    }
+
+    private float GetActiveMaxJumpHoldTime()
+    {
+        return activeVariableJumpKind == JumpKind.Air
+            ? Mathf.Max(0f, airJumpMaxHoldTime)
+            : Mathf.Max(0f, maxJumpHoldTime);
+    }
+
+    private float GetActiveJumpCutVelocityMultiplier()
+    {
+        return activeVariableJumpKind == JumpKind.Air
+            ? Mathf.Clamp01(airJumpCutVelocityMultiplier)
+            : Mathf.Clamp01(jumpCutVelocityMultiplier);
     }
 
     private void FlipDirection()
@@ -682,6 +855,7 @@ public sealed class PlayerController : MonoBehaviour
         {
             isJumpPassThroughActive = false;
             isVariableJumpActive = false;
+            StopAirJumpBoost();
             isWaitingForJumpLanding = false;
             ClearJumpStartGround();
             jumpReleaseQueued = false;

@@ -12,12 +12,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7620f10f375d4a04e88f2bcfb5685977, type: 3}
   m_Name: GameTuningConfig
   m_EditorClassIdentifier: 
-  playerMoveSpeed: 3
+  playerMoveSpeed: 3.2
   playerJumpForce: 7.2
   playerGravityScale: 2
   heldJumpForce: 24
   maxJumpHoldTime: 0.35
   jumpCutVelocityMultiplier: 0.45
+  maxAirJumps: 1
+  airJumpForce: 6.2
+  airJumpMaxHoldTime: 0.1
+  airJumpCutVelocityMultiplier: 0.6
+  airJumpHorizontalBoostMultiplier: 1.25
+  airJumpBoostDuration: 0.18
   useMovementBounds: 0
   playerMinX: -3.2
   playerMaxX: 3.2
@@ -35,11 +41,11 @@ MonoBehaviour:
   platformCount: 45
   firstPlatformY: 1.8
   platformXRange: {x: -1000, y: 1000}
-  platformVerticalSpacingRange: {x: 3, y: 3}
-  platformWidthRange: {x: 5, y: 5}
+  platformVerticalSpacingRange: {x: 2.2, y: 2.2}
+  platformWidthRange: {x: 4, y: 4}
   platformMaxHorizontalStep: 6
   platformMinCountPerRow: 1
-  platformMaxCountPerRow: 3
+  platformMaxCountPerRow: 1
   platformAdditionalSameRowChance: 0.45
   platformSameRowMinGap: 0.8
   platformSameRowSpawnRadius: 8
@@ -51,16 +57,16 @@ MonoBehaviour:
   useRandomSeed: 0
   randomSeed: 12345
   spikePlatformStartScore: 1
-  spikePlatformChance: 1
+  spikePlatformChance: 0.5
   spikeWidth: 0.5
   spikeHeight: 0.35
-  spikeEdgePadding: 0.5
+  spikeEdgePadding: 0.7
   spikeToothWidth: 0.35
-  spikeMinHorizontalDistanceFromPreviousRow: 0
+  spikeMinHorizontalDistanceFromPreviousRow: 0.5
   spikeColor: {r: 0.9, g: 0.12, b: 0.08, a: 1}
-  lavaRiseSpeed: 1.2
+  lavaRiseSpeed: 1
   lavaAcceleration: 0.04
-  lavaMaxRiseSpeed: 1.2
+  lavaMaxRiseSpeed: 1
   lavaMaxDistanceBelowPlayer: 6
   lavaSize: {x: 200, y: 3}
   lavaFollowCameraX: 1
